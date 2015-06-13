@@ -1,0 +1,6 @@
+#!/bin/sh
+# Run a Ruby REPL.
+
+set -e
+cd $(dirname "$0")/..
+bundle exec pry -r ./app/api

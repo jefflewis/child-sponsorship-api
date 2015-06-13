@@ -1,0 +1,23 @@
+development:
+  adapter: postgresql
+  enconding: unicode
+  database: child-sponsorship-api_development
+  pool: 5
+  username: pbl3
+  password: 
+
+test:
+  adapter: postgresql
+  enconding: unicode
+  database: child-sponsorship-api_test
+  pool: 5
+  username: pbl3
+  password: postgres
+
+production:
+  adapter: postgresql
+  encoding: unicode
+  database: child-sponsorship-api_production
+  pool: 5
+  username: pbl3
+  password:
