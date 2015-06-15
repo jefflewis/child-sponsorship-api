@@ -27,14 +27,15 @@ class User < ActiveRecord::Base
       SecureRandom.urlsafe_base64
     end
 
-    def authenticate(email = '', password = '')
-      user = User.find_by_email(email)
-      if user && user.password == get_hashed_password(password)
-        return user
-      else
-        return false
-      end
-    end
+    # def authenticate(email, password)
+    #   user = User.find_by_email(email)
+    #   if user && user.password == get_hashed_password(password)
+    #     return user
+    #   else
+    #     return false
+    #   end
+    # end
+
     def get_hashed_password(password)
       Digest::SHA1.hexdigest(password) unless password.nil?
     end

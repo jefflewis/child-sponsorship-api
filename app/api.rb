@@ -31,9 +31,9 @@ module ChildSponsorship
     before do
       # This seems to get destroyed the minute we reference request.params.  No idea why.
       original_request_body = request.body.read
-      params = request.params.dup
+      @params = request.params.dup
       begin
-        params.merge! JSON.parse(original_request_body)
+        @params.merge! JSON.parse(original_request_body)
       rescue JSON::ParserError => e
         # no op, because sometimes JSON parameters are not sent in the body
       end
@@ -41,18 +41,61 @@ module ChildSponsorship
 
     set(:auth) do |access_level_required|
       condition {
-        @user = User.find_by(token: params[:token])
+        @user = User.find_by(token: params['token'])
         ( @user && @user.access >= access_level_required ) or halt(403)
       }
     end
 
-    get api_for '/' do
+    get api_for('/'), provides: 'json' do
       'Child Sponsorship API is up and running'.to_json
     end
 
+    get api_for('/auth-not-required'), provides: 'json' do
+      { 'some-key' => 'some-value' }.to_json
+    end
 
-    get api_for '/users' do
+    get api_for('/auth-required'), provides: 'json', :auth => 10 do
+      { 'some-private-key' => 'some-private-value' }.to_json
+    end
+
+    post api_for('/tokens'), provides: 'json' do
+      user = User.find_by(email: params['email'].to_s)
+      if user.nil?
+        404
+      elsif user.authenticate(params['password'])
+        token = SecureRandom.hex(16)
+        user.token = token
+        user.save
+        {
+          'token' => token,
+        }.to_json
+      else
+        401
+      end
+    end
+
+    delete api_for('/tokens') do
+      user = User.find_by(token: params['token'].to_s)
+      if user
+        user.token = nil
+        user.save
+        200
+      else
+        404
+      end
+    end
+
+    get api_for('/users'), provides: 'json', :auth => 10 do
       User.all.to_json
+    end
+
+    get api_for('/user'), provides: 'json' do
+      user = User.find_by(token: params['token'].to_s)
+      return 404  if user.nil?
+      {
+        'email' => user.email,
+        'access' => user.access,
+      }.to_json
     end
 
     post api_for '/login' do
@@ -65,11 +108,20 @@ module ChildSponsorship
       end
     end
 
-
-
-
     get api_for('/children') do
       Child.all.to_json
+    end
+
+    get api_for('/data-only-users-can-see'), auth: 1 do
+      {
+        'data' => 'must have at least access level 1 to see this',
+      }.to_json
+    end
+
+    get api_for('/data-only-admins-can-see'),  auth: 5 do
+      {
+        'data' => 'must have at least access level 5 to see this',
+      }.to_json
     end
 
     private

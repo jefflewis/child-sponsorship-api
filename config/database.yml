@@ -4,7 +4,7 @@ development:
   database: child-sponsorship-api_development
   pool: 5
   username: pbl3
-  password: 
+  password:
 
 test:
   adapter: postgresql
@@ -12,7 +12,7 @@ test:
   database: child-sponsorship-api_test
   pool: 5
   username: pbl3
-  password: postgres
+  password:
 
 production:
   adapter: postgresql

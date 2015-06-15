@@ -10,6 +10,14 @@ def api_for(resource)
   "/api/#{config[:api_version]}#{resource}"
 end
 
-def setup
-jeff = User.new name:"Jeff"
+# def setup
+#   jeff = User.new name:"Jeff"
+# end
+
+def last_response_data
+  begin
+    JSON.parse(last_response.body)
+  rescue JSON::ParserError => e
+    {}
+  end
 end
