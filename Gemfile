@@ -10,7 +10,6 @@ gem 'bcrypt', '3.1.7'
 gem 'uuid'
 gem 'aes'
 gem 'sinatra-cross_origin', "~> 0.3.1"
-gem 'thin'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
