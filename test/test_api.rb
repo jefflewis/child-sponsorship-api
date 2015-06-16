@@ -27,8 +27,8 @@ module ChildSponsorship
     end
 
     def get_token(user)
-      post api_for('/tokens'), { 'email'      => user.email,
-                                 'password'   => user.password }
+      post api_for('/login'), { 'email' => user.email,
+                                'password' => user.password }
       last_response_data['token']
     end
 
@@ -41,7 +41,7 @@ module ChildSponsorship
     def test_no_auth_required
       get api_for('/auth-not-required')
       assert last_response.ok?
-      assert_equal last_response_data, { 'some-key' => 'some-value' }
+      assert_equal last_response_data, { :some_key => 'some_value' }
     end
 
     def test_auth_required
@@ -49,55 +49,63 @@ module ChildSponsorship
       assert_equal 403, last_response.status
     end
 
-    def test_post_tokens
+    def test_post_login
       create_users
       assert_equal @admin_user.email, 'test@test.com'
-      post api_for('/tokens'), { 'email'      => @admin_user.email,
-                                 'password'   => @admin_user.password }
+      assert_equal @admin_user.password, 'foobar'
+      post api_for('/login'), { 'email' => @admin_user.email,
+                                'password' => @admin_user.password }.to_json
+      token1 = last_response_data[:token]
+      refute_nil token1, "Token returned nil"
       assert_equal 200, last_response.status
-      token1 = last_response_data['token']
-      assert_match /^[a-f0-9]{32}$/, token1
+      # assert_match /^[a-f0-9]{32}$/, token1
       # Test if a second request generates a new token
-      post api_for('/tokens'), { 'email'      => @admin_user.email,
-                                 'password'   => @admin_user.password }
-      refute_equal token1, last_response_data['token']
+      post api_for('/login'), { 'email' => @admin_user.email,
+                                'password' => @admin_user.password }.to_json
+      token2 = last_response_data[:token]
+      refute_equal token1, token2
       # Invalid credentials do not provide a token
-      post api_for('/tokens'), { 'email'      => 'test@test.com',
-                                 'password'   => 'badword' }
+      post api_for('/login'), { :email      => 'test@test.com',
+                                :password   => 'badword' }.to_json
       assert_equal 401, last_response.status
       # Not found returned if email not found for suer
-      post api_for('/tokens'), { 'email'      => 'bad@email',
-                                 'password'   => 'badword' }
+      post api_for('/login'), { :email      => 'bad@email',
+                                :password   => 'badword' }.to_json
       assert_equal 404, last_response.status
     end
 
     def test_admin_access
-      create_users
-      token = get_token(@admin_user)
       # auth not required, Admin user
-      get api_for('/auth-not-required'), { token: token }
+      get api_for('/auth-not-required')
       assert_equal 200, last_response.status
-      assert_equal last_response_data, { 'some-key' => 'some-value' }
+      assert_equal last_response_data, { :some_key => 'some_value' }
       # auth-required, Admin user
-      get api_for("/auth-required?token=#{token}"), { token: token }
+      create_users
+      post api_for('/login'), { 'email' => @admin_user.email,
+                                'password' => @admin_user.password }.to_json
+      token = last_response_data[:token]
+      refute_nil token
+      get api_for("/auth-required?token=#{token}"), { token: token }.to_json
       assert_equal 200, last_response.status
-      assert_equal last_response_data, { 'some-private-key' => 'some-private-value' }
+      assert_equal last_response_data, { :some_private_key => 'some_private_value' }
       # GET user
-      get api_for("/user?token=#{token}")
+      get api_for("/user?token=#{token}"), { token: token }.to_json
       assert_equal 200, last_response.status
-      assert_equal last_response_data, { 'email'    => 'test@test.com',
-                                         'access'   => 10 }
+      assert_equal last_response_data, { :email    => 'test@test.com',
+                                         :access   => 10 }
       # Test non-admin user access
-      token = get_token(@reg_user)
+      post api_for('/login'), { 'email' => @reg_user.email,
+                                'password' => @reg_user.password }.to_json
+      token = last_response_data[:token]
       # auth not required, non-admin user
       get api_for('/auth-not-required'), { token: token }
       assert_equal 200, last_response.status
-      assert_equal last_response_data, { 'some-key' => 'some-value' }
+      assert_equal last_response_data, { :some_key => 'some_value' }
       # auth-required, non-admin user
       get api_for("/auth-required?token=#{token}"), { token: token }
       assert_equal 403, last_response.status
       # Delete invalidates tokens
-      delete api_for('/tokens'), 'token' => token
+      delete api_for('/login'), { token: token }
       get api_for("/auth-required?token=#{token}")
       assert_equal 403, last_response.status
       # Delete with invalid token throws an error
@@ -107,9 +115,12 @@ module ChildSponsorship
 
     def test_all_users
       create_users
-      token = get_token(@admin_user)
+      post api_for('/login'), { 'email' => @admin_user.email,
+                                'password' => @admin_user.password }.to_json
+      token = last_response_data[:token]
+      refute_nil token
       get api_for('/users'), { token: token }
-      assert last_response_data, { 'email'  => 'test@test.com' }
+      assert last_response_data, { 'email'  => 'test@test.com' }.to_json
     end
   end
 end

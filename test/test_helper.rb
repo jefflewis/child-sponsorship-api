@@ -16,7 +16,7 @@ end
 
 def last_response_data
   begin
-    JSON.parse(last_response.body)
+    JSON.parse(last_response.body, { symbolize_names: true })
   rescue JSON::ParserError => e
     {}
   end

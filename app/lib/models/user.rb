@@ -1,11 +1,13 @@
 require 'uuid'
 require 'digest/sha1'
+require 'bcrypt'
 require 'sinatra/activerecord'
 
 class User < ActiveRecord::Base
   has_many :children, dependent: :destroy
+  attr_accessor :remember_token, :activation_token, :reset_token
   before_save   :downcase_email
-  # before_create :create_activation_digest
+  before_create :create_activation_digest
   VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i
   validates :name, presence: true, length: { maximum:50 }
   validates :email, presence: true, length: { maximum:255 },
@@ -18,7 +20,7 @@ class User < ActiveRecord::Base
     # Returns the hash digest of the given string
     def digest(string)
       cost = ActiveModel::SecurePassword.min_cost ? BCrypt::Engine::MIN_COST :
-                                                   BCrypt::Engine.cost
+                                                    BCrypt::Engine.cost
       BCrypt::Password.create(string, cost: cost)
     end
 
@@ -27,25 +29,13 @@ class User < ActiveRecord::Base
       SecureRandom.urlsafe_base64
     end
 
-    # def authenticate(email, password)
-    #   user = User.find_by_email(email)
-    #   if user && user.password == get_hashed_password(password)
-    #     return user
-    #   else
-    #     return false
-    #   end
-    # end
-
-    def get_hashed_password(password)
-      Digest::SHA1.hexdigest(password) unless password.nil?
-    end
-
-    def make_salt
-      UUID.state_file = false
-      UUID.generator.next_sequence
-      UUID.new.generate
-    end
   end
+
+  # # Generate new token and save
+  # def generate_token!
+  #   self.token = User.new_token
+  #   self.save! #persist
+  # end
 
   def to_json
     {
@@ -55,14 +45,14 @@ class User < ActiveRecord::Base
     }.to_json
   end
 
-  def create_hashed_password
-    unless password.blank?
-      self.salt ||= User.make_salt
-      self.password = User.get_hashed_password(password)
-      self.token = Digest::SHA1.hexdigest(password + salt)[0..20]
-    end
-
-  end
+  # def create_hashed_password
+  #   unless password.blank?
+  #     self.salt ||= User.make_salt
+  #     self.password = User.get_hashed_password(password)
+  #     self.token = Digest::SHA1.hexdigest(password + salt)[0..20]
+  #   end
+  #
+  # end
 
   # Remembers a user in the database for use in persistent sessions
   def remember
