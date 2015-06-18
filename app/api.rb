@@ -1,6 +1,8 @@
 require 'sinatra/activerecord'
 require 'sinatra/cross_origin'
+require "sinatra/jsonp"
 require 'yaml'
+
 Dir["app/lib/**/*.rb"].each{ |f| require File.absolute_path(f)}
 
 module ChildSponsorship
@@ -42,21 +44,10 @@ module ChildSponsorship
       end
     end
 
-    # before do
-    #   begin
-    #     if request.body.read(1)
-    #       request.body.rewind
-    #       @request_payload = JSON.parse request.body.read #, { symbolize_names: true }
-    #     end
-    #   rescue JSON::ParserError => e
-    #     request.body.rewind
-    #     puts "The body #{request.body.read} was not JSON"
-    #   end
-    # end
-
     set(:auth) do |access_level_required|
       condition {
-        @user = User.find_by(remember_digest: @params['token'])
+        token = @params[:token].nil? ? @params['token'] : @params[:token]
+        @user = User.find_by(remember_digest: token)
         ( @user && @user.access >= access_level_required ) or render_no_access
       }
     end
@@ -75,10 +66,10 @@ module ChildSponsorship
 
     post api_for('/login'), provides: 'json' do
       # params = @request_payload[:user]
-      user = User.find_by(email: params[:email].to_s)
+      user = User.find_by(email: @params[:email].to_s)
       if user.nil?
         404
-      elsif user.authenticate(params[:password].to_s)
+      elsif user.authenticate(@params[:password].to_s)
         user.remember
         { token: user.remember_digest }.to_json
       else
@@ -96,25 +87,52 @@ module ChildSponsorship
       end
     end
 
-    get api_for('/users'), :auth => 10 do
+    post api_for('/signup'), provides: 'json' do
+      user = User.new(email: @params[:email], password: @params[:password])
+      if user
+        # user.send_activation_email
+        user.remember
+        { token: user.remember_digest }.to_json
+      else
+        404
+      end
+    end
+
+    get api_for('/users'), provides: 'json', :auth => 10 do
       User.all.to_json
     end
 
-    # get api_for('/users'), do
-    #
-    # end
-
-    get api_for('/user') do
-      user = User.find_by(remember_digest: params['token'])
-      return 404  if user.nil?
-      {
-        'email' => user.email,
-        'access' => user.access,
-      }.to_json
+    get api_for('/users/:id'), provides: 'json', :auth => 10 do
+      user = User.find(@params['id'])
+      return 404 if user.nil?
+      user.to_json
     end
 
-    get api_for('/children') do
+
+
+    get api_for('/user') do
+      user = User.find_by(remember_digest: @params['token'])
+      return 404 if user.nil?
+      user.to_json
+    end
+
+    get api_for('/children'), provides: 'json' do
       Child.all.to_json
+    end
+
+    get api_for('/children/:id'), provides: 'json' do
+      child = Child.find(@params['id'])
+      return 404 if child.nil?
+      child.to_json
+    end
+
+    post api_for('/children'), provides: 'json', :auth => 10 do
+      child = Child.new(name:         @params[:name],
+                        description:  @params[:description],
+                        user_id:      @params[:user_id])
+      return 404 unless child
+      child.save
+      child.to_json
     end
 
     get api_for('/data-only-users-can-see'), auth: 1 do
@@ -130,8 +148,15 @@ module ChildSponsorship
     end
 
     private
+
       def render_no_access
         halt 403, { message: "Acess Denied" }.to_json
       end
+
+      # def user_params
+      #   @params.require(:user).permit(:name, :email, :password)
+      # end
   end
+
+
 end

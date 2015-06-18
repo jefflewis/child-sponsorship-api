@@ -1,5 +1,5 @@
-require 'uuid'
-require 'digest/sha1'
+# require 'uuid'
+# require 'digest/sha1'
 require 'bcrypt'
 require 'sinatra/activerecord'
 
@@ -39,9 +39,11 @@ class User < ActiveRecord::Base
 
   def to_json
     {
-      email: email,
-      private_token: token,
-      entries: entries.pluck(:id)
+      id:       id,
+      name:     name,
+      email:    email,
+      access:   access,
+      children: children
     }.to_json
   end
 
@@ -73,10 +75,10 @@ class User < ActiveRecord::Base
   end
 
   # Activates an account
-    def activate
-      update_columns(activated:    true,
-                     activated_at: Time.zone.now)
-    end
+  def activate
+    update_columns(activated:    true,
+                   activated_at: Time.zone.now)
+  end
 
   # Sends activation email
   def send_activation_email
