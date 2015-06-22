@@ -85,11 +85,11 @@ module ChildSponsorship
       get api_for("/auth-required?token=#{token}"), { token: token }
       assert_equal 403, last_response.status
       # Delete invalidates tokens
-      delete api_for('/login'), { token: token }
+      get api_for('/logout'), { token: token }
       get api_for("/auth-required?token=#{token}")
       assert_equal 403, last_response.status
       # Delete with invalid token throws an error
-      delete api_for('/tokens'), { token: 'badtoken' }
+      get api_for('/logout'), { token: 'badtoken' }
       assert_equal 404, last_response.status
     end
 
@@ -117,8 +117,8 @@ module ChildSponsorship
     def test_admin_get_single_user
       user = User.first
       refute_nil user
-      post api_for('/login'), { :email => @admin_user.email,
-                                :password => @admin_user.password }.to_json
+      post api_for('/login'), { :email =>     @admin_user.email,
+                                :password =>  @admin_user.password }.to_json
       assert_equal 200, last_response.status
       token = last_response_data[:token]
       refute_nil token
@@ -171,10 +171,32 @@ module ChildSponsorship
       child.delete
     end
 
-    # def get_children_for_user
-    #   create_users
-    #   create_children
-    #
-    # end
+    def test_delete_user
+      post api_for('/login'), { :email =>     @admin_user.email,
+                                :password =>  @admin_user.password }.to_json
+      assert_equal 200, last_response.status
+      token = last_response_data[:token]
+      refute_nil token
+      id = @admin_user.id
+      delete api_for("/users/#{id}"), { token: token }
+      assert_equal 200, last_response.status
+      user = User.find_by(id: id)
+      assert_nil user
+      assert_equal last_response_data, { message: "User: #{id} deleted" }
+    end
+
+    def test_delete_child
+      post api_for('/login'), { :email =>     @admin_user.email,
+                                :password =>  @admin_user.password }.to_json
+      assert_equal 200, last_response.status
+      token = last_response_data[:token]
+      refute_nil token
+      id = Child.first.id
+      delete api_for("/children/#{id}"), { token: token }
+      assert_equal 200, last_response.status
+      child = Child.find_by(id: id)
+      assert_nil child
+      assert_equal last_response_data, { message: "Child: #{id} deleted" }
+    end
   end
 end

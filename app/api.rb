@@ -1,6 +1,5 @@
 require 'sinatra/activerecord'
 require 'sinatra/cross_origin'
-require "sinatra/jsonp"
 require 'yaml'
 
 Dir["app/lib/**/*.rb"].each{ |f| require File.absolute_path(f)}
@@ -26,23 +25,29 @@ module ChildSponsorship
     # Cross Origin (CORS)
     options "*" do
       response.headers["Allow"] = "HEAD,GET,PUT,POST,DELETE,OPTIONS"
-      response.headers["Access-Control-Allow-Headers"] = "PRIVATE_TOKEN, X-Requested-With, X-HTTP-Method-Override, Content-Type, Cache-Control, Accept"
+      response.headers["Access-Control-Allow-Headers"] = "X-Requested-With,
+                                                          X-HTTP-Method-Override,
+                                                          Content-Type,
+                                                          Cache-Control,
+                                                          Accept"
       200
     end
 
     before do
-      # This seems to get destroyed the minute we reference request.params.  No idea why.
       original_request_body = request.body.read
-      # @request_payload = request.params.dup
       @params = request.params.dup
       begin
         @params.merge! JSON.parse(original_request_body, { symbolize_names: true } )
-        # @requst_payload = JSON.parse(original_request_body)
-        # @request_payload = JSON.parse request.body.read, { symbolize_names: true }
       rescue JSON::ParserError => e
-        # no op, because sometimes JSON parameters are not sent in the body
+        # Many requests seem to generate an error even though the enpoinds work
+        # ¯\_(ツ)_/¯
       end
     end
+
+    set :allow_methods, [:get, :post, :options, :put, :patch, :delete, :head]
+    set :expose_headers, ['Content-Type', 'X-Requested-With', 'PRIVATE_TOKEN',
+                          'X-HTTP-Method-Override', 'Cache-Control', 'Accept']
+    set :protection, :origin_whitelist => ['http://localhost:9000', 'https://child-sponsorship-web.herokuapp.com']
 
     set(:auth) do |access_level_required|
       condition {
@@ -65,7 +70,6 @@ module ChildSponsorship
     end
 
     post api_for('/login'), provides: 'json' do
-      # params = @request_payload[:user]
       user = User.find_by(email: @params[:email].to_s)
       if user.nil?
         404
@@ -77,7 +81,7 @@ module ChildSponsorship
       end
     end
 
-    delete api_for('/login') do
+    get api_for('/logout') do
       user = User.find_by(remember_digest: @params['token'])
       if user
         user.forget
@@ -108,7 +112,20 @@ module ChildSponsorship
       user.to_json
     end
 
+    put api_for('/users/:id'), provides: 'json', :auth => 10 do
+      user = User.find_by(remember_digest: @params['token'])
+      user.name     = @params['name']     unless !@params['name']
+      user.email    = @params['email']    unless !@params['email']
+      user.password = @params['password'] unless !@params['password']
+      user.save
+      200
+    end
 
+    delete api_for('/users/:id'), provides: 'json', :auth => 10 do
+      id = @params['id']
+      User.find(id).destroy
+      { message: "User: #{id} deleted" }.to_json
+    end
 
     get api_for('/user') do
       user = User.find_by(remember_digest: @params['token'])
@@ -124,6 +141,12 @@ module ChildSponsorship
       child = Child.find(@params['id'])
       return 404 if child.nil?
       child.to_json
+    end
+
+    delete api_for('/children/:id'), provides: 'json', :auth => 10 do
+      id = @params['id']
+      Child.find(id).destroy
+      { message: "Child: #{id} deleted" }.to_json
     end
 
     post api_for('/children'), provides: 'json', :auth => 10 do
@@ -153,9 +176,6 @@ module ChildSponsorship
         halt 403, { message: "Acess Denied" }.to_json
       end
 
-      # def user_params
-      #   @params.require(:user).permit(:name, :email, :password)
-      # end
   end
 
 
