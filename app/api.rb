@@ -112,7 +112,7 @@ module ChildSponsorship
       user.to_json
     end
 
-    put api_for('/users/:id'), provides: 'json', :auth => 10 do
+    post api_for('/users/:id'), provides: 'json', :auth => 10 do
       user = User.find_by(remember_digest: @params['token'])
       user.name     = @params['name']     unless !@params['name']
       user.email    = @params['email']    unless !@params['email']
