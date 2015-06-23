@@ -112,13 +112,15 @@ module ChildSponsorship
       user.to_json
     end
 
-    post api_for('/users/:id'), provides: 'json', :auth => 10 do
-      user = User.find_by(remember_digest: @params['token'])
-      user.name     = @params['name']     unless !@params['name']
-      user.email    = @params['email']    unless !@params['email']
-      user.password = @params['password'] unless !@params['password']
-      user.save
-      200
+    post api_for('/users/:id'), provides: 'json' do
+      requesting_user = User.find_by(remember_digest: @params['token'])
+      user = User.find(@params['id'])
+      if requesting_user == user || requesting_user.access >= 10
+        user.update_attributes({ name: @params[:name].to_s, email: @params[:email].to_s, password: @params[:password].to_s })
+        200
+      else
+        403
+      end
     end
 
     delete api_for('/users/:id'), provides: 'json', :auth => 10 do
@@ -135,6 +137,10 @@ module ChildSponsorship
 
     get api_for('/children'), provides: 'json' do
       Child.all.to_json
+    end
+    
+    get api_for('/children/available'), provides: 'json' do
+      Child.where(user_id: nil).to_json
     end
 
     get api_for('/children/:id'), provides: 'json' do
