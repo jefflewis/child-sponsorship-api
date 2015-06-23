@@ -1,6 +1,7 @@
 require 'sinatra/activerecord'
 require 'sinatra/cross_origin'
 require 'yaml'
+require 'rack/ssl'
 
 Dir["app/lib/**/*.rb"].each{ |f| require File.absolute_path(f)}
 
@@ -8,6 +9,7 @@ module ChildSponsorship
   class Api < Sinatra::Base
     register Sinatra::ActiveRecordExtension
     register Sinatra::CrossOrigin
+    use Rack::SSL
     attr_reader :current_user
 
     class << self
@@ -39,7 +41,7 @@ module ChildSponsorship
       begin
         @params.merge! JSON.parse(original_request_body, { symbolize_names: true } )
       rescue JSON::ParserError => e
-        # Many requests seem to generate an error even though the enpoinds work
+        # Many requests seem to generate an error even though the enpoints work
         # ¯\_(ツ)_/¯
       end
     end
