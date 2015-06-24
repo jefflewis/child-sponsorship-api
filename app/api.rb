@@ -9,7 +9,10 @@ module ChildSponsorship
   class Api < Sinatra::Base
     register Sinatra::ActiveRecordExtension
     register Sinatra::CrossOrigin
-    use Rack::SSL
+    if :environment == :production
+      use Rack::SSL
+    end
+    
     attr_reader :current_user
 
     class << self
