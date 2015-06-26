@@ -1,5 +1,7 @@
 require 'sinatra/activerecord'
 require 'sinatra/cross_origin'
+require 'will_paginate'
+require 'will_paginate/active_record'
 require 'yaml'
 require 'rack/ssl'
 
@@ -25,6 +27,7 @@ module ChildSponsorship
 
     configure do
       enable :cross_origin
+      WillPaginate.per_page = 30
     end
 
     # Cross Origin (CORS)
@@ -108,7 +111,7 @@ module ChildSponsorship
     end
 
     get api_for('/users'), provides: 'json', :auth => 10 do
-      User.all.to_json
+      User.all.pagingate(page: @params[:page]).to_json
     end
 
     get api_for('/users/:id'), provides: 'json', :auth => 10 do

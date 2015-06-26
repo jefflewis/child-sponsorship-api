@@ -13,4 +13,3 @@ class Child < ActiveRecord::Base
     }.to_json
   end
 end
-
