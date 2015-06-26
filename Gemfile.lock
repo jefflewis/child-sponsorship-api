@@ -178,6 +178,7 @@ GEM
       thread_safe (~> 0.1)
     uuid (2.3.8)
       macaddr (~> 1.0)
+    will_paginate (3.0.7)
 
 PLATFORMS
   ruby
@@ -202,6 +203,7 @@ DEPENDENCIES
   sinatra-jsonp
   spring
   uuid
+  will_paginate (~> 3.0.6)
 
 BUNDLED WITH
    1.10.1
