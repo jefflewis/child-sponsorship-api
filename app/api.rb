@@ -14,7 +14,7 @@ module ChildSponsorship
     if :environment == :production
       use Rack::SSL
     end
-    
+
     attr_reader :current_user
 
     class << self
@@ -47,7 +47,8 @@ module ChildSponsorship
       begin
         @params.merge! JSON.parse(original_request_body, { symbolize_names: true } )
       rescue JSON::ParserError => e
-        # Many requests seem to generate an error even though the enpoints work
+        # Many requests generate an error even though the endpoints work
+        # TODO: Figure out why...
         # ¯\_(ツ)_/¯
       end
     end
@@ -111,7 +112,7 @@ module ChildSponsorship
     end
 
     get api_for('/users'), provides: 'json', :auth => 10 do
-      User.all.pagingate(page: @params[:page]).to_json
+      User.all.paginate(page: @params[:page]).to_json
     end
 
     get api_for('/users/:id'), provides: 'json', :auth => 10 do
@@ -120,11 +121,24 @@ module ChildSponsorship
       user.to_json
     end
 
-    post api_for('/users/:id'), provides: 'json' do
+    post api_for('/users'), provides: 'json', :auth => 10 do
+      user = User.new(name:     @params[:name],
+                      email:    @params[:email],
+                      password: @params[:password])
+      return 404 unless user
+      user.save
+      user.to_json
+    end
+
+    put api_for('/users/:id'), provides: 'json' do
       requesting_user = User.find_by(remember_digest: @params['token'])
       user = User.find(@params['id'])
+      return 404 unless user
       if requesting_user == user || requesting_user.access >= 10
-        user.update_attributes({ name: @params[:name].to_s, email: @params[:email].to_s, password: @params[:password].to_s })
+        # TODO: Refactor this to not be redundant :/
+        user.update_attribute(:name, @params['name']) unless @params['name'].nil?
+        user.update_attribute(:email, @params['email']) unless @params['email'].nil?
+        user.update_attribute(:password, @params['password']) unless @params['password'].nil?
         200
       else
         403
@@ -144,9 +158,9 @@ module ChildSponsorship
     end
 
     get api_for('/children'), provides: 'json' do
-      Child.all.to_json
+      Child.all.paginate(page: @params[:page]).to_json
     end
-    
+
     get api_for('/children/available'), provides: 'json' do
       Child.where(user_id: nil).to_json
     end
@@ -166,22 +180,32 @@ module ChildSponsorship
     post api_for('/children'), provides: 'json', :auth => 10 do
       child = Child.new(name:         @params[:name],
                         description:  @params[:description],
+                        gender:       @params[:gender],
+                        birthdate:    @params[:birthdate],
                         user_id:      @params[:user_id])
       return 404 unless child
       child.save
       child.to_json
     end
 
+    put api_for('/children/:id'), provides: 'json', :auth => 10 do
+      child = Child.find(@params['id'])
+      return 404 unless child
+      # TODO: Refactor this to not be redundant :/
+      child.update_attribute(:name, @params['name']) unless @params['name'].nil?
+      child.update_attribute(:description, @params['description']) unless @params['description'].nil?
+      child.update_attribute(:gender, @params['gender']) unless @params['gender'].nil?
+      child.update_attribute(:birthdate, @params['birthdate']) unless @params['birthdate'].nil?
+      child.update_attribute(:user_id, @params['user_id']) unless @params['user_id'].nil?
+      200
+    end
+
     get api_for('/data-only-users-can-see'), auth: 1 do
-      {
-        'data' => 'must have at least access level 1 to see this',
-      }.to_json
+      { 'data' => 'must have at least access level 1 to see this' }.to_json
     end
 
     get api_for('/data-only-admins-can-see'),  auth: 5 do
-      {
-        'data' => 'must have at least access level 5 to see this',
-      }.to_json
+      { 'data' => 'must have at least access level 5 to see this' }.to_json
     end
 
     private

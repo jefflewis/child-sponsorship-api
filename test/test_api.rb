@@ -152,11 +152,45 @@ module ChildSponsorship
       assert_equal child.to_json, last_response_data.to_json
     end
 
+    def test_create_user
+      user = {
+        name: "Test",
+        email: "testing123@test.com",
+        password: "foobar"
+      }
+      post api_for('/login'), { :email => @admin_user.email,
+                                :password => @admin_user.password }.to_json
+      token = last_response_data[:token]
+      refute_nil token
+      post api_for('/users'), (user.merge({ token: token })).to_json
+      assert_equal 200, last_response.status
+      user = nil
+      user = User.find_by(email: "testing123@test.com")
+      refute_nil user
+      assert_equal user.to_json, last_response_data.to_json
+    end
+
+    def test_update_user
+      user = User.first
+      post api_for('/login'), { :email => @admin_user.email,
+                                :password => @admin_user.password }.to_json
+      token = last_response_data[:token]
+      refute_nil token
+      put api_for("/users/#{user.id}"), { token: token,
+                                          email: "new@email.com" }
+      assert_equal 200, last_response.status
+      user_edit = User.find(user.id)
+      assert_equal "new@email.com", user_edit.email
+      refute_equal user.to_json, last_response_data.to_json
+    end
+
     def test_create_child
       child = {
         name: "Jonah",
-        description: "Young boy",
-        user_id: @admin_user.id
+        description: "Young Boy",
+        user_id: @admin_user.id,
+        birthdate: Date.parse('2008-03-03'),
+        gender: "male"
       }
       post api_for('/login'), { :email => @admin_user.email,
                                 :password => @admin_user.password }.to_json
@@ -168,7 +202,21 @@ module ChildSponsorship
       child = Child.find_by(name: "Jonah")
       refute_nil child
       assert_equal child.to_json, last_response_data.to_json
-      child.delete
+    end
+
+    def test_update_child
+      child = Child.first
+      post api_for('/login'), { :email => @admin_user.email,
+                                :password => @admin_user.password }.to_json
+      token = last_response_data[:token]
+      refute_nil token
+
+      put api_for("/children/#{child.id}"), { token: token,
+                                              description: "Updated description" }
+      assert_equal 200, last_response.status
+      child_edit = Child.find(child.id)
+      assert_equal "Updated description", child_edit.description
+      refute_equal child.to_json, last_response_data.to_json
     end
 
     def test_delete_user

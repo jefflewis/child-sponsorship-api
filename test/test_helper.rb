@@ -44,28 +44,36 @@ def create_children
   @child1 = Child.new(
     name: "Harriet",
     description: "Young Girl",
-    user_id: @admin_user.id
+    user_id: @admin_user.id,
+    birthdate: Date.parse('20010-07-13'),
+    gender: "male"
   )
   @child1.save
 
   @child2 = Child.new(
-    name: "Harriet",
-    description: "Young Girl",
-    user_id: @admin_user.id
+    name: "Jonah",
+    description: "Young Boy",
+    user_id: @admin_user.id,
+    birthdate: Date.parse('2008-03-03'),
+    gender: "male"
   )
   @child2.save
 
   @child3 = Child.new(
-    name: "Harriet",
-    description: "Young Girl",
-    user_id: @reg_user.id
+    name: "Samantha",
+    description: "Younger Girl",
+    user_id: @reg_user.id,
+    birthdate: Date.parse('2003-06-22'),
+    gender: "female"
   )
   @child3.save
 
   @child4 = Child.new(
-    name: "Harriet",
-    description: "Young Girl",
-    user_id: @reg_user.id
+    name: "Peter",
+    description: "Younger Boy",
+    user_id: @reg_user.id,
+    birthdate: Date.parse('2005-02-07'),
+    gender: "male"
   )
   @child4.save
 end

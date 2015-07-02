@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150618144427) do
+ActiveRecord::Schema.define(version: 20150701140718) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -22,6 +22,8 @@ ActiveRecord::Schema.define(version: 20150618144427) do
     t.integer  "user_id"
     t.datetime "created_at",  null: false
     t.datetime "updated_at",  null: false
+    t.string   "gender"
+    t.date     "birthdate"
   end
 
   add_index "children", ["user_id", "created_at"], name: "index_children_on_user_id_and_created_at", using: :btree
@@ -33,15 +35,12 @@ ActiveRecord::Schema.define(version: 20150618144427) do
     t.datetime "created_at",                        null: false
     t.datetime "updated_at",                        null: false
     t.string   "password_digest"
-    t.string   "salt"
-    t.boolean  "admin",             default: false
     t.string   "activation_digest"
     t.boolean  "activated",         default: false
     t.datetime "activated_at"
     t.string   "reset_digest"
     t.datetime "reset_sent_at"
     t.integer  "access",            default: 1,     null: false
-    t.string   "token"
     t.string   "remember_digest"
     t.string   "session_digest"
   end
