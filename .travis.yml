@@ -1,10 +1,15 @@
 language: ruby
 
 rvm:
- - "2.2.0"
+  - "2.2.0"
 
 before_script:
- - psql -c 'create database child-sponsorship-api_test;' -U postgres
+  - psql -c 'create database travis_ci_test;' -U postgres
 
 notifications:
- slack: biblereader:ei4aLnw9dYX7wA8dP8do18CQ
+  slack: biblereader:ei4aLnw9dYX7wA8dP8do18CQ
+
+deploy:
+  provider: heroku
+  api_key:
+  app: my-app-123
