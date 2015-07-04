@@ -200,6 +200,14 @@ module ChildSponsorship
       200
     end
 
+    post api_for('/children/:id/photos/new'), provides: 'json', :auth => 10 do
+      child = Child.find(@params['id'])
+      return 404 unless child
+      photo = ChildPhoto.new(url: @params[:url], caption:  @params[:caption], child_id: child.id)
+      photo.save
+      200
+    end
+
     get api_for('/data-only-users-can-see'), auth: 1 do
       { 'data' => 'must have at least access level 1 to see this' }.to_json
     end

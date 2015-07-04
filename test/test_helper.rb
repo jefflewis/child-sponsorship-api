@@ -78,6 +78,20 @@ def create_children
   @child4.save
 end
 
+def create_child_photos
+  @photo1 = ChildPhoto.new(
+    url: "http://sci8.com/wp-content/uploads/2014/10/test-all-the-things.jpg",
+    caption: "test all the things"
+  )
+  @photo1.save
+
+  @photo2 = ChildPhoto.new(
+    url: "https://dirghakala.files.wordpress.com/2012/06/puppy1.jpg",
+    caption: "pups are the best"
+  )
+  @photo2.save
+end
+
 def delete_chidren
   Child.destroy_all
 end

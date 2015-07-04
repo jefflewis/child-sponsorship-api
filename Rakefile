@@ -43,7 +43,7 @@ task :console do
 end
 
 task :server do
-  system "bundle exec rackup -p 4567"
+  system "bundle exec rackup -p 5000"
 end
 
 Rake::TestTask.new do |t|

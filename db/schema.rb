@@ -11,10 +11,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150701140718) do
+ActiveRecord::Schema.define(version: 20150702143009) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "child_photos", force: :cascade do |t|
+    t.string   "url"
+    t.string   "caption"
+    t.integer  "child_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  add_index "child_photos", ["child_id", "created_at"], name: "index_child_photos_on_child_id_and_created_at", using: :btree
+  add_index "child_photos", ["child_id"], name: "index_child_photos_on_child_id", using: :btree
 
   create_table "children", force: :cascade do |t|
     t.string   "name"
@@ -47,5 +58,6 @@ ActiveRecord::Schema.define(version: 20150701140718) do
 
   add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree
 
+  add_foreign_key "child_photos", "children"
   add_foreign_key "children", "users"
 end

@@ -168,6 +168,7 @@ module ChildSponsorship
       user = User.find_by(email: "testing123@test.com")
       refute_nil user
       assert_equal user.to_json, last_response_data.to_json
+      user.delete
     end
 
     def test_update_user
@@ -186,10 +187,10 @@ module ChildSponsorship
 
     def test_create_child
       child = {
-        name: "Jonah",
-        description: "Young Boy",
+        name: "Samuel",
+        description: "Youngest Boy",
         user_id: @admin_user.id,
-        birthdate: Date.parse('2008-03-03'),
+        birthdate: Date.parse('2004-03-28'),
         gender: "male"
       }
       post api_for('/login'), { :email => @admin_user.email,
@@ -199,9 +200,10 @@ module ChildSponsorship
       post api_for('/children'), (child.merge({ token: token })).to_json
       assert_equal 200, last_response.status
       child = nil
-      child = Child.find_by(name: "Jonah")
+      child = Child.find_by(name: "Samuel")
       refute_nil child
       assert_equal child.to_json, last_response_data.to_json
+      child.delete
     end
 
     def test_update_child
@@ -245,6 +247,23 @@ module ChildSponsorship
       child = Child.find_by(id: id)
       assert_nil child
       assert_equal last_response_data, { message: "Child: #{id} deleted" }
+    end
+
+    def test_add_photo_to_child
+      child = Child.first
+      photo = {
+        url: "http://sci8.com/wp-content/uploads/2014/10/test-all-the-things.jpg",
+        caption: "test all the things"
+      }
+      post api_for('/login'), { :email =>     @admin_user.email,
+                                :password =>  @admin_user.password }.to_json
+      assert_equal 200, last_response.status
+      token = last_response_data[:token]
+      refute_nil token
+      post api_for("/children/#{child.id}/photos/new"), (photo.merge({ token: token })).to_json
+      assert_equal 200, last_response.status
+      new_photo = ChildPhoto.find_by(child_id: child.id)
+      refute_nil new_photo
     end
   end
 end

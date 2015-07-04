@@ -29,33 +29,21 @@ class User < ActiveRecord::Base
     def new_token
       SecureRandom.urlsafe_base64
     end
-
   end
 
-  # # Generate new token and save
-  # def generate_token!
-  #   self.token = User.new_token
-  #   self.save! #persist
-  # end
-
-  def to_json
+  def to_hash
     {
       id:       id,
       name:     name,
       email:    email,
       access:   access,
       children: children
-    }.to_json
+    }
   end
 
-  # def create_hashed_password
-  #   unless password.blank?
-  #     self.salt ||= User.make_salt
-  #     self.password = User.get_hashed_password(password)
-  #     self.token = Digest::SHA1.hexdigest(password + salt)[0..20]
-  #   end
-  #
-  # end
+  def to_json
+    self.to_hash.to_json
+  end
 
   # Remembers a user in the database for use in persistent sessions
   def remember
