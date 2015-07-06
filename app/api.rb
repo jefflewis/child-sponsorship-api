@@ -226,7 +226,6 @@ module ChildSponsorship
           'original-filename' => '${filename}'
         }
       })
-      return 500 unless post
       { signed_url: post.url, fields: post.fields }.to_json
     end
 
