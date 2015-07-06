@@ -13,6 +13,7 @@ gem 'sinatra-cross_origin', "~> 0.3.1"
 gem 'sinatra-jsonp'
 gem 'rack-ssl'
 gem 'will_paginate', '~> 3.0.6'
+gem 'aws-sdk'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console

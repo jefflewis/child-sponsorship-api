@@ -39,6 +39,12 @@ GEM
     aes (0.5.0)
     ansi (1.5.0)
     arel (6.0.0)
+    aws-sdk (2.1.2)
+      aws-sdk-resources (= 2.1.2)
+    aws-sdk-core (2.1.2)
+      jmespath (~> 1.0)
+    aws-sdk-resources (2.1.2)
+      aws-sdk-core (= 2.1.2)
     bcrypt (3.1.7)
     builder (3.2.2)
     byebug (5.0.0)
@@ -66,6 +72,8 @@ GEM
       minitest (>= 3.0)
     hitimes (1.2.2)
     i18n (0.7.0)
+    jmespath (1.0.2)
+      multi_json (~> 1.0)
     json (1.8.3)
     listen (2.10.0)
       celluloid (~> 0.16.0)
@@ -185,6 +193,7 @@ PLATFORMS
 
 DEPENDENCIES
   aes
+  aws-sdk
   bcrypt (= 3.1.7)
   byebug
   guard-minitest (= 2.3.1)

@@ -4,6 +4,7 @@ require 'will_paginate'
 require 'will_paginate/active_record'
 require 'yaml'
 require 'rack/ssl'
+require 'aws-sdk'
 
 Dir["app/lib/**/*.rb"].each{ |f| require File.absolute_path(f)}
 
@@ -23,11 +24,13 @@ module ChildSponsorship
         config = YAML.load File.read('config/child_sponsorship.yml')
         "/api/#{config[:api_version]}#{resource}"
       end
+
     end
 
     configure do
       enable :cross_origin
       WillPaginate.per_page = 30
+      # S3_BUCKET = Aws::S3::Bucket.initialize(ENV['CHILD_SPONSORSHIP_S3_BUCKET'])
     end
 
     # Cross Origin (CORS)
@@ -208,6 +211,25 @@ module ChildSponsorship
       200
     end
 
+    # Endoing for returning a pre-signed form for uploading files to S3
+    get api_for('/signed_url'), provides: 'json', :auth => 10 do
+
+      AWS_CREDS = Aws::Credentials.new(ENV['AWS_ACCESS_KEY_ID'], ENV['AWS_SECRET_ACCESS_KEY'])
+      region = 'us-east-1'
+      bucket = ENV['CHILD_SPONSORSHIP_S3_BUCKET']
+      post = Aws::S3::PresignedPost.new(AWS_CREDS, region, bucket, {
+        key: "uploads/#{SecureRandom.uuid}/${filename}",
+        content_length_range: 0..5120,
+        acl: 'public-read',
+        success_action_status: '201',
+        metadata: {
+          'original-filename' => '${filename}'
+        }
+      })
+      return 500 unless post
+      { signed_url: post.url, fields: post.fields }.to_json
+    end
+
     get api_for('/data-only-users-can-see'), auth: 1 do
       { 'data' => 'must have at least access level 1 to see this' }.to_json
     end
@@ -217,11 +239,9 @@ module ChildSponsorship
     end
 
     private
-
       def render_no_access
         halt 403, { message: "Acess Denied" }.to_json
       end
-
   end
 
 

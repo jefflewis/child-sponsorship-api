@@ -265,5 +265,16 @@ module ChildSponsorship
       new_photo = ChildPhoto.find_by(child_id: child.id)
       refute_nil new_photo
     end
+
+    def test_get_signed_url
+      post api_for('/login'), { :email =>     @admin_user.email,
+                                :password =>  @admin_user.password }.to_json
+      assert_equal 200, last_response.status
+      token = last_response_data[:token]
+      refute_nil token
+      get api_for('/signed_url'), { token: token }
+      # assert_equal 200, last_response.status
+      refute_nil last_response_data[:signed_url]
+    end
   end
 end
