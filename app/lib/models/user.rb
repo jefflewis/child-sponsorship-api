@@ -37,7 +37,7 @@ class User < ActiveRecord::Base
       name:     name,
       email:    email,
       access:   access,
-      children: children
+      children: children.to_json(:include => :child_photos)
     }
   end
 

@@ -5,6 +5,7 @@ require 'will_paginate/active_record'
 require 'yaml'
 require 'rack/ssl'
 require 'aws-sdk'
+require 'openssl'
 
 Dir["app/lib/**/*.rb"].each{ |f| require File.absolute_path(f)}
 
@@ -161,11 +162,11 @@ module ChildSponsorship
     end
 
     get api_for('/children'), provides: 'json' do
-      Child.all.paginate(page: @params[:page]).to_json
+      Child.includes(:child_photos).all.to_json(:include => :child_photos)
     end
 
     get api_for('/children/available'), provides: 'json' do
-      Child.where(user_id: nil).to_json
+      Child.where(user_id: nil).to_json(:include => :child_photos)
     end
 
     get api_for('/children/:id'), provides: 'json' do
@@ -213,21 +214,14 @@ module ChildSponsorship
 
     # Endoing for returning a pre-signed form for uploading files to S3
     get api_for('/signed_url'), provides: 'json', :auth => 10 do
-
-      AWS_CREDS = Aws::Credentials.new(ENV['AWS_ACCESS_KEY_ID'], ENV['AWS_SECRET_ACCESS_KEY'])
-      region = 'us-east-1'
-      bucket = ENV['CHILD_SPONSORSHIP_S3_BUCKET']
-      post = Aws::S3::PresignedPost.new(AWS_CREDS, region, bucket, {
-        key: "uploads/#{SecureRandom.uuid}/${filename}",
-        content_length_range: 0..5120,
-        acl: 'public-read',
-        success_action_status: '201',
-        metadata: {
-          'original-filename' => '${filename}'
-        }
-      })
-      return 500 unless post
-      { signed_url: post.url, fields: post.fields }.to_json
+      {
+          policy:                   s3_upload_policy_document,
+          signature:                s3_upload_signature,
+          access_id:                ENV['AWS_ACCESS_KEY_ID'],
+          success_action_redirect:  "/",
+          url:                      "https://#{ENV['CHILD_SPONSORSHIP_S3_BUCKET']}.s3.amazonaws.com",
+          acl:                      'public-read'
+      }.to_json
     end
 
     get api_for('/data-only-users-can-see'), auth: 1 do
@@ -241,6 +235,35 @@ module ChildSponsorship
     private
       def render_no_access
         halt 403, { message: "Acess Denied" }.to_json
+      end
+
+      # generate the policy document that amazon is expecting.
+      def s3_upload_policy_document
+        Base64.encode64(
+          {
+            "expiration": 30.minutes.from_now.utc.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+            "conditions": [
+              {"bucket": ENV['CHILD_SPONSORSHIP_S3_BUCKET'] },
+              ["starts-with", "$key", ""],
+              {"acl": "public-read"},
+              {"success_action_status": "201"},
+              ["starts-with", "$Content-Type", ""],
+              ["starts-with", "$filename", ""],
+              ["content-length-range", 0, 524288000]
+            ]
+          }.to_json
+        ).gsub(/\n|\r/, '')
+      end
+
+      # sign our request by Base64 encoding the policy document.
+      def s3_upload_signature
+        Base64.encode64(
+            OpenSSL::HMAC.digest(
+                OpenSSL::Digest.new('sha1'),
+                ENV['AWS_SECRET_ACCESS_KEY'],
+                s3_upload_policy_documentQ
+            )
+        ).gsub(/\n/, '')
       end
   end
 

@@ -8,6 +8,33 @@ class Child < ActiveRecord::Base
   validates   :birthdate,     presence:   true
   validates   :gender,        presence:   true
 
+  class << self
+
+    def to_hash
+      {
+        id:           id,
+        name:         name,
+        description:  description,
+        birthdate:    birthdate,
+        gender:       gender,
+        child_photos: child_photos,
+        user_id:      user_id
+      }
+    end
+
+    def to_json
+        {
+          id:           id,
+          name:         name,
+          description:  description,
+          birthdate:    birthdate,
+          gender:       gender,
+          child_photos: child_photos,
+          user_id:      user_id
+        }.to_json
+    end
+  end
+
   def to_hash
     {
       id:           id,
