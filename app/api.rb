@@ -261,7 +261,7 @@ module ChildSponsorship
             OpenSSL::HMAC.digest(
                 OpenSSL::Digest.new('sha1'),
                 ENV['AWS_SECRET_ACCESS_KEY'],
-                s3_upload_policy_documentQ
+                s3_upload_policy_document
             )
         ).gsub(/\n/, '')
       end
