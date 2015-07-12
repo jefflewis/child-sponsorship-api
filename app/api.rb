@@ -6,6 +6,7 @@ require 'yaml'
 require 'rack/ssl'
 require 'aws-sdk'
 require 'openssl'
+require 'stripe'
 
 Dir["app/lib/**/*.rb"].each{ |f| require File.absolute_path(f)}
 
@@ -60,7 +61,14 @@ module ChildSponsorship
     set :allow_methods, [:get, :post, :options, :put, :patch, :delete, :head]
     set :expose_headers, ['Content-Type', 'X-Requested-With', 'PRIVATE_TOKEN',
                           'X-HTTP-Method-Override', 'Cache-Control', 'Accept']
-    set :protection, :origin_whitelist => ['http://localhost:9000', 'https://child-sponsorship-web.herokuapp.com']
+    set :protection, :origin_whitelist => ['http://localhost:9000',
+                                           'https://child-sponsorship-web.herokuapp.com']
+    # set :publishable_key, ENV['STRIPE_PUBLISHABLE_KEY']
+    # set :secret_key, ENV['STRIPE_SECRET_KEY']
+    set :publishable_key, ENV['TEST_STRIPE_PUBLISHABLE_KEY']
+    set :secret_key, ENV['TEST_STRIPE_SECRET_KEY']
+
+    Stripe.api_key = settings.secret_key
 
     set(:auth) do |access_level_required|
       condition {
@@ -162,11 +170,11 @@ module ChildSponsorship
     end
 
     get api_for('/children'), provides: 'json' do
-      Child.includes(:child_photos).all.to_json(:include => :child_photos)
+      Child.includes(:child_photos).all.to_json(:include => :child_photos, :methods => :age)
     end
 
     get api_for('/children/available'), provides: 'json' do
-      Child.where(user_id: nil).to_json(:include => :child_photos)
+      Child.where(user_id: nil).to_json(:include => :child_photos, :methods => :age)
     end
 
     get api_for('/children/:id'), provides: 'json' do
@@ -196,11 +204,11 @@ module ChildSponsorship
       child = Child.find(@params['id'])
       return 404 unless child
       # TODO: Refactor this to not be redundant :/
-      child.update_attribute(:name, @params['name']) unless @params['name'].nil?
-      child.update_attribute(:description, @params['description']) unless @params['description'].nil?
-      child.update_attribute(:gender, @params['gender']) unless @params['gender'].nil?
-      child.update_attribute(:birthdate, @params['birthdate']) unless @params['birthdate'].nil?
-      child.update_attribute(:user_id, @params['user_id']) unless @params['user_id'].nil?
+      child.update_attribute(:name, @params[:name]) unless @params[:name].nil?
+      child.update_attribute(:description, @params[:description]) unless @params[:description].nil?
+      child.update_attribute(:gender, @params[:gender]) unless @params[:gender].nil?
+      child.update_attribute(:birthdate, @params[:birthdate]) unless @params[:birthdate].nil?
+      child.update_attribute(:user_id, @params[:user_id]) unless @params[:user_id].nil?
       200
     end
 
@@ -222,6 +230,50 @@ module ChildSponsorship
           url:                      "https://#{ENV['CHILD_SPONSORSHIP_S3_BUCKET']}.s3.amazonaws.com",
           acl:                      'public-read'
       }.to_json
+    end
+
+    post api_for('/charge'), :auth => 1 do
+      user = User.find(@params[:user_id])
+      child = Child.find(@params[:child_id])
+      if user.stripe_id.nil?
+        customer = Stripe::Customer.create(
+          :email => user.email,
+          :source  => @params[:stripeToken][:id],
+          :description => user.name,
+          :metadata => { :sponsor_id => user.id }
+        )
+        user.stripe_id = customer.id
+        user.save
+        customer.subscriptions.create({:plan => 'cs35m'})
+      else
+        customer = Stripe::Customer.retrieve(user.stripe_id)
+        subscription = customer.subscriptions.retrieve(customer.subscriptions.data[0].id)
+        subscription.quantity = user.children.count + 1
+        subscription.save
+      end
+      child.user_id = user.id
+      child.save
+      200
+    end
+
+    error Stripe::CardError do
+      env['sinatra.error'].message
+    end
+
+    error Stripe::InvalidRequestError do
+      env['sinatra.error'].message
+    end
+
+    error Stripe::APIConnectionError do
+      env['sinatra.error'].message
+    end
+
+    error Stripe::AuthenticationError do
+      env['sinatra.error'].message
+    end
+
+    error Stripe::StripeError do
+      env['sinatra.error'].message
     end
 
     get api_for('/data-only-users-can-see'), auth: 1 do
