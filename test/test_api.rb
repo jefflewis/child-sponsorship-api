@@ -274,7 +274,7 @@ module ChildSponsorship
       refute_nil token
       get api_for('/signed_url'), { token: token }
       # assert_equal 200, last_response.status
-      refute_nil last_response_data[:signed_url]
+      refute_nil last_response_data
     end
   end
 end
