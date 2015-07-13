@@ -214,7 +214,7 @@ module ChildSponsorship
       refute_nil token
 
       put api_for("/children/#{child.id}"), { token: token,
-                                              description: "Updated description" }
+                                              description: "Updated description" }.to_json
       assert_equal 200, last_response.status
       child_edit = Child.find(child.id)
       assert_equal "Updated description", child_edit.description
