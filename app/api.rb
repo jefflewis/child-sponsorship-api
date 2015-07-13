@@ -61,7 +61,7 @@ module ChildSponsorship
     set :allow_methods, [:get, :post, :options, :put, :patch, :delete, :head]
     set :expose_headers, ['Content-Type', 'X-Requested-With', 'PRIVATE_TOKEN',
                           'X-HTTP-Method-Override', 'Cache-Control', 'Accept']
-    set :protection, :origin_whitelist => ['http://localhost:9000', 'https://child-sponsorship-web.herokuapp.com']
+    set :protection, :origin_whitelist => ['http://localhost:9000',
                                            'https://child-sponsorship-web.herokuapp.com']
     # set :publishable_key, ENV['STRIPE_PUBLISHABLE_KEY']
     # set :secret_key, ENV['STRIPE_SECRET_KEY']
