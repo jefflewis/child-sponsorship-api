@@ -1,5 +1,3 @@
-# require 'uuid'
-# require 'digest/sha1'
 require 'bcrypt'
 require 'sinatra/activerecord'
 
@@ -37,7 +35,7 @@ class User < ActiveRecord::Base
       name:     name,
       email:    email,
       access:   access,
-      children: children
+      children: children.to_json(:include => :child_photos, :methods => :age)
     }
   end
 

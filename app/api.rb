@@ -5,6 +5,8 @@ require 'will_paginate/active_record'
 require 'yaml'
 require 'rack/ssl'
 require 'aws-sdk'
+require 'openssl'
+require 'stripe'
 
 Dir["app/lib/**/*.rb"].each{ |f| require File.absolute_path(f)}
 
@@ -60,6 +62,13 @@ module ChildSponsorship
     set :expose_headers, ['Content-Type', 'X-Requested-With', 'PRIVATE_TOKEN',
                           'X-HTTP-Method-Override', 'Cache-Control', 'Accept']
     set :protection, :origin_whitelist => ['http://localhost:9000', 'https://child-sponsorship-web.herokuapp.com']
+                                           'https://child-sponsorship-web.herokuapp.com']
+    # set :publishable_key, ENV['STRIPE_PUBLISHABLE_KEY']
+    # set :secret_key, ENV['STRIPE_SECRET_KEY']
+    set :publishable_key, ENV['TEST_STRIPE_PUBLISHABLE_KEY']
+    set :secret_key, ENV['TEST_STRIPE_SECRET_KEY']
+
+    Stripe.api_key = settings.secret_key
 
     set(:auth) do |access_level_required|
       condition {
@@ -161,11 +170,11 @@ module ChildSponsorship
     end
 
     get api_for('/children'), provides: 'json' do
-      Child.all.paginate(page: @params[:page]).to_json
+      Child.includes(:child_photos).all.to_json(:include => :child_photos, :methods => :age)
     end
 
     get api_for('/children/available'), provides: 'json' do
-      Child.where(user_id: nil).to_json
+      Child.where(user_id: nil).to_json(:include => :child_photos, :methods => :age)
     end
 
     get api_for('/children/:id'), provides: 'json' do
@@ -195,11 +204,11 @@ module ChildSponsorship
       child = Child.find(@params['id'])
       return 404 unless child
       # TODO: Refactor this to not be redundant :/
-      child.update_attribute(:name, @params['name']) unless @params['name'].nil?
-      child.update_attribute(:description, @params['description']) unless @params['description'].nil?
-      child.update_attribute(:gender, @params['gender']) unless @params['gender'].nil?
-      child.update_attribute(:birthdate, @params['birthdate']) unless @params['birthdate'].nil?
-      child.update_attribute(:user_id, @params['user_id']) unless @params['user_id'].nil?
+      child.update_attribute(:name, @params[:name]) unless @params[:name].nil?
+      child.update_attribute(:description, @params[:description]) unless @params[:description].nil?
+      child.update_attribute(:gender, @params[:gender]) unless @params[:gender].nil?
+      child.update_attribute(:birthdate, @params[:birthdate]) unless @params[:birthdate].nil?
+      child.update_attribute(:user_id, @params[:user_id]) unless @params[:user_id].nil?
       200
     end
 
@@ -213,20 +222,58 @@ module ChildSponsorship
 
     # Endoing for returning a pre-signed form for uploading files to S3
     get api_for('/signed_url'), provides: 'json', :auth => 10 do
+      {
+          policy:                   s3_upload_policy_document,
+          signature:                s3_upload_signature,
+          access_id:                ENV['AWS_ACCESS_KEY_ID'],
+          success_action_redirect:  "/",
+          url:                      "https://#{ENV['CHILD_SPONSORSHIP_S3_BUCKET']}.s3.amazonaws.com",
+          acl:                      'public-read'
+      }.to_json
+    end
 
-      AWS_CREDS = Aws::Credentials.new(ENV['AWS_ACCESS_KEY_ID'], ENV['AWS_SECRET_ACCESS_KEY'])
-      region = 'us-east-1'
-      bucket = ENV['CHILD_SPONSORSHIP_S3_BUCKET']
-      post = Aws::S3::PresignedPost.new(AWS_CREDS, region, bucket, {
-        key: "uploads/#{SecureRandom.uuid}/${filename}",
-        content_length_range: 0..5120,
-        acl: 'public-read',
-        success_action_status: '201',
-        metadata: {
-          'original-filename' => '${filename}'
-        }
-      })
-      { signed_url: post.url, fields: post.fields }.to_json
+    post api_for('/charge'), :auth => 1 do
+      user = User.find(@params[:user_id])
+      child = Child.find(@params[:child_id])
+      if user.stripe_id.nil?
+        customer = Stripe::Customer.create(
+          :email => user.email,
+          :source  => @params[:stripeToken][:id],
+          :description => user.name,
+          :metadata => { :sponsor_id => user.id }
+        )
+        user.stripe_id = customer.id
+        user.save
+        customer.subscriptions.create({:plan => 'cs35m'})
+      else
+        customer = Stripe::Customer.retrieve(user.stripe_id)
+        subscription = customer.subscriptions.retrieve(customer.subscriptions.data[0].id)
+        subscription.quantity = user.children.count + 1
+        subscription.save
+      end
+      child.user_id = user.id
+      child.save
+      200
+    end
+
+    error Stripe::CardError do
+      env['sinatra.error'].message
+    end
+
+    error Stripe::InvalidRequestError do
+      env['sinatra.error'].message
+    end
+
+    error Stripe::APIConnectionError do
+      env['sinatra.error'].message
+    end
+
+    error Stripe::AuthenticationError do
+      env['sinatra.error'].message
+    end
+
+    error Stripe::StripeError do
+      env['sinatra.error'].message
     end
 
     get api_for('/data-only-users-can-see'), auth: 1 do
@@ -240,6 +287,35 @@ module ChildSponsorship
     private
       def render_no_access
         halt 403, { message: "Acess Denied" }.to_json
+      end
+
+      # generate the policy document that amazon is expecting.
+      def s3_upload_policy_document
+        Base64.encode64(
+          {
+            "expiration": 30.minutes.from_now.utc.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+            "conditions": [
+              {"bucket": ENV['CHILD_SPONSORSHIP_S3_BUCKET'] },
+              ["starts-with", "$key", ""],
+              {"acl": "public-read"},
+              {"success_action_status": "201"},
+              ["starts-with", "$Content-Type", ""],
+              ["starts-with", "$filename", ""],
+              ["content-length-range", 0, 524288000]
+            ]
+          }.to_json
+        ).gsub(/\n|\r/, '')
+      end
+
+      # sign our request by Base64 encoding the policy document.
+      def s3_upload_signature
+        Base64.encode64(
+            OpenSSL::HMAC.digest(
+                OpenSSL::Digest.new('sha1'),
+                ENV['AWS_SECRET_ACCESS_KEY'],
+                s3_upload_policy_document
+            )
+        ).gsub(/\n/, '')
       end
   end
 
