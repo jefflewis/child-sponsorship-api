@@ -21,6 +21,7 @@ group :development, :test do
   gem 'byebug'
   gem 'pry'
   gem 'spring'
+  gem "codeclimate-test-reporter"
 end
 
 group :test do

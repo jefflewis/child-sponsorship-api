@@ -113,7 +113,9 @@ module ChildSponsorship
     end
 
     post api_for('/signup'), provides: 'json' do
-      user = User.new(email: @params[:email], password: @params[:password])
+      user = User.new(name:     @params[:name],
+                      email:    @params[:email],
+                      password: @params[:password])
       if user
         # user.send_activation_email
         user.remember
@@ -127,10 +129,16 @@ module ChildSponsorship
       User.all.paginate(page: @params[:page]).to_json
     end
 
-    get api_for('/users/:id'), provides: 'json', :auth => 10 do
+    get api_for('/users/:id'), provides: 'json' do
+      requesting_user = User.find_by(remember_digest: @params['token'])
       user = User.find(@params['id'])
-      return 404 if user.nil?
-      user.to_json
+      if requesting_user == user || requesting_user.access >= 10
+        user.to_json
+      elsif user
+        403
+      else
+        404
+      end
     end
 
     post api_for('/users'), provides: 'json', :auth => 10 do
@@ -148,9 +156,9 @@ module ChildSponsorship
       return 404 unless user
       if requesting_user == user || requesting_user.access >= 10
         # TODO: Refactor this to not be redundant :/
-        user.update_attribute(:name, @params['name']) unless @params['name'].nil?
-        user.update_attribute(:email, @params['email']) unless @params['email'].nil?
-        user.update_attribute(:password, @params['password']) unless @params['password'].nil?
+        user.update_attribute(:name, @params[:name]) unless @params[:name].nil?
+        user.update_attribute(:email, @params[:email]) unless @params[:email].nil?
+        user.update_attribute(:password, @params[:password]) unless @params[:password].nil?
         200
       else
         403
@@ -185,7 +193,13 @@ module ChildSponsorship
 
     delete api_for('/children/:id'), provides: 'json', :auth => 10 do
       id = @params['id']
-      Child.find(id).destroy
+      child = Child.find(id)
+      user = User.find(child.user_id)
+      customer = Stripe::Customer.retrieve(user.stripe_id)
+      subscription = customer.subscriptions.retrieve(customer.subscriptions.data[0].id)
+      subscription.quantity = user.children.count - 1
+      subscription.save
+      child.destroy
       { message: "Child: #{id} deleted" }.to_json
     end
 
