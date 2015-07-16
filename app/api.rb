@@ -194,11 +194,13 @@ module ChildSponsorship
     delete api_for('/children/:id'), provides: 'json', :auth => 10 do
       id = @params['id']
       child = Child.find(id)
-      user = User.find(child.user_id)
-      customer = Stripe::Customer.retrieve(user.stripe_id)
-      subscription = customer.subscriptions.retrieve(customer.subscriptions.data[0].id)
-      subscription.quantity = user.children.count - 1
-      subscription.save
+      if child.user_id
+        user = User.find(child.user_id)
+        customer = Stripe::Customer.retrieve(user.stripe_id)
+        subscription = customer.subscriptions.retrieve(customer.subscriptions.data[0].id)
+        subscription.quantity = user.children.count - 1
+        subscription.save
+      end
       child.destroy
       { message: "Child: #{id} deleted" }.to_json
     end
