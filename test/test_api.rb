@@ -178,7 +178,7 @@ module ChildSponsorship
       token = last_response_data[:token]
       refute_nil token
       put api_for("/users/#{user.id}"), { token: token,
-                                          email: "new@email.com" }
+                                          email: "new@email.com" }.to_json
       assert_equal 200, last_response.status
       user_edit = User.find(user.id)
       assert_equal "new@email.com", user_edit.email
@@ -212,7 +212,6 @@ module ChildSponsorship
                                 :password => @admin_user.password }.to_json
       token = last_response_data[:token]
       refute_nil token
-
       put api_for("/children/#{child.id}"), { token: token,
                                               description: "Updated description" }.to_json
       assert_equal 200, last_response.status

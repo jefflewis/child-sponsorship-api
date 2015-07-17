@@ -159,6 +159,9 @@ module ChildSponsorship
         user.update_attribute(:name, @params[:name]) unless @params[:name].nil?
         user.update_attribute(:email, @params[:email]) unless @params[:email].nil?
         user.update_attribute(:password, @params[:password]) unless @params[:password].nil?
+        if requesting_user.access >= 10
+          user.update_attribute(:access, @params[:access]) unless @params[:acces].nil?
+        end
         200
       else
         403

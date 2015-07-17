@@ -30,7 +30,7 @@ def create_users
                          password:              'foobar',
                          password_confirmation: 'foobar',
                          email:                 'test@test.com',
-                         access:                10)
+                         access:                20)
   @admin_user.save
 
   @reg_user = User.new( name:                  'user',
